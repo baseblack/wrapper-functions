@@ -1,7 +1,7 @@
 wrapper-functions
 =================
 
-you don't want wrapper-functions
+you do not want wrapper-functions
 
 never look wrapper-functions straight in the eye
 
