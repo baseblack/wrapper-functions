@@ -1,0 +1,125 @@
+# standardized logging bash functions
+# PCN
+
+#alias exit='echo EXIT command called with status: '
+
+function bb_logdebug {
+# writes only to stdout and then only if BB_DEBUG is set
+  if [ $# -ne 1 ] ; then
+      echo "ERROR: bb_logdebug called incorrectly: '$@'. Exiting." 
+      echo "usage: bb_logdebug <message>"
+      exit 1
+    else
+      local message=${1}
+      if  [[ $BB_DEBUG ]]; then
+        echo DEBUG: "${message}" 
+      fi 
+  fi
+}
+
+function bb_loginit {
+# creates desired logging directory and file 
+  if [ $# -ne 5 ] ; then
+    echo "ERROR: bb_loginit called incorrectly: '$@'. Exiting."  
+    echo "usage: bb_loginit <APPLICATION_LOGFILE> <user> <vendor> <application> <version>"
+    exit 1
+  fi
+  local logfilevar=${1}
+  local logfileprefix=$(echo ${logfilevar%_LOGFILE} | tr [:upper:] [:lower:] | sed s/_/-/g)
+  local user=$2
+  local vendor=$3
+  local application=$4
+  local ver=$5
+
+  # the logfile to be#
+  logdirectory="/var/tmp/${user}/${vendor}/${application}/${ver}"
+  logfile="${logdirectory}/${logfileprefix}-$$.log"
+  export ${logfilevar}=${logfile}
+  bb_logdebug "${logfilevar}=${logfile}"
+  
+  # verify directory
+  
+  if [ ! -d ${logdirectory} ] ; then
+    mkdir -p ${logdirectory} 2>&1 > /dev/null
+    if [[ $? -ne 0 ]] ; then
+      echo "ERROR: cannot create logging directory '${logdirectory}'. Exiting."
+      exit 1
+    fi
+    bb_logdebug "created directory '${logdirectory}'"
+  fi
+    
+  # verify file
+  if [ ! -e  /var/tmp/${user}/${vendor}/${application}/${ver}/${logfileprefix}-$$.log ] ; then
+    touch /var/tmp/${user}/${vendor}/${application}/${ver}/${logfileprefix}-$$.log 2>&1 > /dev/null
+    if [[ $? -ne 0 ]] ; then
+      echo "ERROR: cannot initialise log file '/var/tmp/${user}/${vendor}/${application}/${ver}/${logfileprefix}-$$.log'. Exiting."
+      exit 1
+    fi
+   bb_logdebug "created log file '${logfile}'"
+    echo '--- '`date`' --- '`hostname --fqdn`' ---' | tee -a /var/tmp/${user}/${vendor}/${application}/${ver}/${logfileprefix}-$$.log
+  fi
+}
+
+function bb_loginfo {
+# writes to file and stdout
+  if [ $# -ne 2 ] ; then
+    echo "ERROR: bb_loginfo called incorrectly: '$@'. Exiting." 
+    echo "usage: bb_loginfo <logfile-variable> <message>"
+    exit 1
+  else
+    local fileloc=${!1}
+    local message=${2}
+    if [[ ! -e ${fileloc} ]]; then
+      echo "ERROR: bb_loginfo cannot log to '${fileloc}'. Exiting."
+      exit 1
+    fi
+    echo INFO: ${message} | tee -a ${fileloc} 
+  fi
+}
+
+function bb_logwarn {
+# writes to file and stdout
+  if [ $# -ne 2 ] ; then
+    echo "ERROR: bb_logwarn called incorrectly: '$@'. Exiting."
+    echo "usage: bb_logwarn <logfile-variable> <message>"
+    exit 1
+  else
+    local fileloc=${!1}
+    local message=${2}
+    if [[ ! -e ${fileloc} ]]; then
+      echo "ERROR: bb_logwarn cannot log to '${fileloc}'. Exiting."
+      exit 1
+    fi
+    echo WARNING: ${message} | tee -a ${fileloc} 
+  fi
+}
+
+function bb_logerror {
+# writes to file and stdout
+  if [ $# -ne 2 ] ; then
+    echo "ERROR: bb_logerror called incorrectly: '$@'. Exiting."
+    echo "usage: bb_logerror <logfile-variable> <message>"
+    exit 1
+  else
+    local fileloc=${!1}
+    local message=${2}
+    if [[ ! -e ${fileloc} ]]; then
+      echo "ERROR: bb_logerror cannot log to '${fileloc}'. Exiting."
+      exit 1
+    fi
+    echo ERROR: ${message} | tee -a ${fileloc} 
+  fi
+}
+
+function bb_logenvironment {
+# logdebug the usual suspects of environment information
+  if [ $# -ne 1 ] ; then
+    echo "ERROR: bb_logenvironment called incorrectly: '$@'. Exiting." 
+    echo "usage: bb_logenvironment <keyword>"
+    exit 1
+  fi
+    local keyword=$1
+    local stuff=""
+    for stuff in `compgen -A variable | sort | grep -i ${keyword}`; do bb_logdebug  "environment variable ${stuff}=${!stuff}"; done
+}
+

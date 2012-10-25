@@ -1,0 +1,40 @@
+# this does nothing more than add a --show option to
+# command line args and sets SHOW env var with it.
+# It also passes all other args along unmolested.
+# PCN
+
+#alias exit='echo EXIT command called with status: '
+
+source /opt/baseblack/wrapper-functions/bb_logger
+
+function bb_getopts {
+  BB_ARGS=()
+  until [ -z "$1" ]
+  do
+      if [ "$1" == "--show" ]
+      then         
+        export SHOW=${SHOW-$2}
+        shift
+      elif [ "$1" == "--bbdebug" ]
+      then         
+        export BB_DEBUG=1
+      else
+        BB_ARGS+=("$1")
+	export BB_ARGS
+      fi
+      shift
+  done
+  
+[[ $SHOW ]] && bb_logdebug "SHOW set to '${SHOW}'"
+
+if [[ $BB_ARGS ]]
+then
+  cnt=${#BB_ARGS[@]}
+  for (( i = 0 ; i < cnt ; i++ ))
+  do
+    bb_logdebug "BB_ARG[$i] set to '${BB_ARGS[$i]}'"
+  done
+fi
+
+}
+

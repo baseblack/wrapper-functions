@@ -1,0 +1,266 @@
+# bash functions for getting application version settings from the system
+# PCN
+
+#alias exit='echo EXIT command called with status: '
+
+source /opt/baseblack/wrapper-functions/bb_logger
+
+function bb_getappversion {
+# determines  application version, sets APP_VERSION
+# determines application installation location, sets APP_LOCATION
+if [ $# -ne 2 ]  ; then
+    echo "ERROR: bb_getappversion called incorrectly"   
+    echo "usage: bb_getappversion <vendor> <application>. Exiting."
+    exit 1
+  else
+    bb_logdebug "bb_getappversion called with args '$1 $2'"
+    local vendor=$1
+    local application=$2
+    appdefaultfiles=("$HOME/.config/baseblack/$vendor/$application/default" \
+			"/mnt/shows/$SHOW/.config/baseblack/$vendor/$application/default" \
+			"/opt/.config/baseblack/$vendor/$application/default" )
+    for appdefaultfile in "${appdefaultfiles[@]}"
+    do
+      if [[ -f $appdefaultfile ]]; then
+        bb_logdebug "sourcing ${appdefaultfile}"
+        source $appdefaultfile 
+      fi
+    done
+  fi
+    
+  local appver=$(echo "${application^^}_VERSION")
+  if [[  ! ${!appver} ]] ; then
+    bb_logdebug "no overrides found, defaulting to latest ${appver}"
+    export $appver=`ls /opt/$vendor/$application/ | sort -r | head -1`
+  fi  
+  
+  bb_logdebug "${appver} determined to be ${!appver}"
+  if [[ ${!appver} == "default" ]]; then
+    echo "An old 'default' symlink resides in '/opt/$vendor/$application/', remove it and try again. Exiting."
+    exit 1    
+  fi
+  
+  # determine if this application is installed in /opt, $HOME/opt or elsewhere
+  local applocation=$(echo "${application^^}_LOCATION")
+  if [[ ! ${!applocation} ]]; then
+    local installlocations=("$HOME/opt/${vendor}/${application}/${!appver}" \
+                                       "/opt/${vendor}/${application}/${!appver}")
+    for installlocation in "${installlocations[@]}"
+    do
+      if [[ -d $installlocation ]]; then
+        export $applocation=${installlocation}
+        break
+      fi
+    done
+    unset installlocations
+    unset installlocation
+  fi
+
+  if [[  ! ${!applocation} ]] ; then
+        echo "ERROR: failed to determine install location for version ${!appver} of ${application}. Exiting."
+	exit 1
+  fi
+  bb_logdebug "${applocation} determined to be ${!applocation}"
+
+return 0
+}  
+
+function bb_getpluginversion {
+# determines  version of a given plugin to load for a given version of its parent application, sets PLUGIN_APPLICATION_VERSION
+# determines  plugin installation location, sets PLUGIN_APPLICATION_LOCATION
+  if [ $# -ne 5 ]  ; then
+    echo "ERROR: bb_getpluginversion called incorrectly"  
+    echo "usage: bb_getpluginversion <parent-vendor> <parent-application> <parent-version> <plugin-vendor> <plugin-name>"
+    exit 1
+  else
+    bb_logdebug "bb_getpluginversion called with args '$1 $2 $3 $4 $5'"
+    local parentvendor=$1
+    local parentapp=$2
+    local parentver=$3
+    local pluginvendor=$4
+    local pluginname=$5
+    local pluginvfiles=("$HOME/.config/baseblack/${pluginvendor}/${pluginname}-${parentapp}${parentver}/default" \
+		"/mnt/shows/$SHOW/.config/baseblack/${pluginvendor}/${pluginname}-${parentapp}${parentver}/default" \
+		"/opt/.config/baseblack/${pluginvendor}/${pluginname}-${parentapp}${parentver}/default")
+    for pluginvfile in "${pluginvfiles[@]}"
+    do
+      if [[ -f ${pluginvfile} ]]; then
+        bb_logdebug "sourcing ${pluginvfile}"
+        source ${pluginvfile}
+      else
+        bb_logdebug "plugin version file '${pluginvfile}' not found."
+      fi
+    done
+  fi
+
+  local pluginver=$(echo "${pluginname^^}_${parentapp^^}_VERSION")
+  if [[  ! ${!pluginver} ]] ; then
+      bb_logdebug "no overrides found, defaulting to latest ${pluginver}"
+      export $pluginver=`ls /opt/${pluginvendor}/${pluginname}-${parentapp}${parentver}/ | sort -r | head -1`
+  fi
+
+  # determine if this plugin is installed in /opt, $HOME/opt or elsewhere
+  local pluginlocation=$(echo "${pluginname^^}_${parentapp^^}_LOCATION")
+  
+  if [[ ! ${!pluginlocation} ]]; then
+    local installlocations=("$HOME/opt/${pluginvendor}/${pluginname}-${parentapp}${parentver}/${!pluginver}" \
+                                       "/opt/${pluginvendor}/${pluginname}-${parentapp}${parentver}/${!pluginver}")
+    for installlocation in "${installlocations[@]}"
+    do
+      if [[ -d $installlocation ]]; then
+        export $pluginlocation=${installlocation}
+        break
+      else
+        bb_logdebug "plugin installation '${installlocation}' location not found."
+      fi
+    done
+    unset installlocations
+    unset installlocation
+  fi
+
+  bb_logdebug "${pluginver} determined to be ${!pluginver}"
+  bb_logdebug "${pluginlocation} set to ${!pluginlocation}"
+ 
+  if [[  ! ${!pluginlocation} ]] ; then
+        echo "ERROR: version ${!pluginver} of ${pluginname} for ${parentapp^} ${parentver} is configured to load but is not installed. Exiting."
+	exit 1
+  fi
+
+  unset parentvendor
+  unset parentapp
+  unset parentver
+  unset pluginvendor
+  unset pluginname
+return 0
+}  
+
+function bb_loadappsettings {
+# loads application-scope settings from 'environment' config files
+  if [ $# -ne 3 ]  ; then
+    echo "ERROR: bb_loadappsettings called incorrectly."  
+    echo "usage: bb_loadappsettings <vendor> <application> <version>. Exiting."
+    exit 1
+  else
+    bb_logdebug "bb_loadappsettings called with args '$1 $2 $3'"
+    local vendor=$1
+    local application=$2
+    local appver=$3
+
+    local appenvfiles=("$HOME/.config/baseblack/${vendor}/${application}/${appver}/environment" \
+       "/mnt/shows/$SHOW/.config/baseblack/${vendor}/${application}/${appver}/environment" \
+       "/opt/.config/baseblack/${vendor}/${application}/${appver}/environment")
+    for appenvfile in "${appenvfiles[@]}"
+    do
+      if [[ -f $appenvfile ]]; then
+        bb_logdebug "sourcing ${appenvfile}"
+        source ${appenvfile}
+      else
+        bb_logdebug "application configuration file '${appenvfile}' not found"
+      fi
+    done 
+  bb_logenvironment ${vendor}
+  bb_logenvironment ${application}
+  bb_logenvironment "PATH"
+  bb_logenvironment "VERSION"
+  bb_logenvironment "BB_"
+  fi
+return 0
+}  
+
+function bb_loadappplugins {
+# gets list of plugins  to load for a given application
+# calls bb_getpluginversion to find which versions of plugins to load for that application's version
+# loads relevant 'environment' config files
+  if [ $# -ne 3 ] ; then
+    echo "ERROR: bb_loadappplugins called incorrectly" 
+    echo "usage: bb_loadappplugins <vendor> <application> <version>. Exiting."
+    exit 1
+  else
+    bb_logdebug "bb_loadappplugins called with args '$1 $2 $3'"
+    local vendor=$1
+    local application=$2
+    local ver=$3
+    
+    #get the list of plugins to be loaded
+    origIFS="${IFS}"
+    IFS=$'\n'
+    unset pluginstoload
+    declare -A -x pluginstoload
+
+    local pluginconfigdirs=("$HOME/.config/baseblack/$vendor/$application/$ver/plugins" \
+  	"/mnt/shows/$SHOW/.config/baseblack/$vendor/$application/$ver/plugins" \
+  	"/opt/.config/baseblack/$vendor/$application/$ver/plugins")
+
+## find  all .plugin files in these dirs
+
+    for pluginconfigdir in "${pluginconfigdirs[@]}"    
+    do
+      #bb_logdebug "checking for plugin configuration files in '$pluginconfigdir'"
+      if [[ -d $pluginconfigdir ]]; then
+        for pluginconfigfile in `ls $pluginconfigdir/*.plugin`
+        do
+          if [[ -f $pluginconfigfile ]]; then
+	    bb_logdebug "loading plugin configuration file '$pluginconfigfile'"
+            for line in `cat ${pluginconfigfile} | grep -v '^[[:space:]]*#'`
+            do
+              local v=`echo $line | awk '{ print $1 }'`
+              local p=`echo $line | awk '{ print $2 }'`
+              if [[  -z "${v}" ]] || [[ -z "${p}" ]]; then
+                echo "ERROR: plugin configuration file ${pluginconfigfile} incorrectly formatted. Exiting."
+                exit 1
+              fi
+              if [[ ! ${pluginstoload[$p]} ]]; then
+  	        pluginstoload[$p]=$v
+              fi
+              unset v
+              unset p
+            done
+	    else
+              bb_logdebug "plugin configuration file '${pluginconfigfile}' not found"
+            fi
+	done
+      else
+        bb_logdebug "plugin configuration directory '$pluginconfigdir' doesn't exist or isn't a directory"
+      fi	
+    done
+      
+    # source environment configuration for each plugin version to be loaded
+    for pluginname in "${!pluginstoload[@]}"
+    do
+      local pluginvendor=${pluginstoload[$pluginname]}
+      
+      # get which version of this plugin to load for the specificed master application
+      bb_getpluginversion ${vendor} ${application} ${ver} ${pluginvendor} ${pluginname}
+      
+      # naming convention fragility alert!
+      local pluginver=${pluginname^^}_${application^^}_VERSION
+      
+      if [[  ! ${!pluginver} ]] ; then
+        echo ERROR: ${application} is configured to load ${pluginname} but ${pluginver} is not set. Exiting.
+	exit 1
+      fi
+      
+      local pluginenvfiles=("$HOME/.config/baseblack/${pluginvendor}/${pluginname}-${application}${ver}/${!pluginver}/environment" \
+          "/mnt/shows/$SHOW/.config/baseblack/${pluginvendor}/${pluginname}-${application}${ver}/${!pluginver}/environment" \
+          "/opt/.config/baseblack/${pluginvendor}/${pluginname}-${application}${ver}/${!pluginver}/environment")
+      for pluginenvfile in "${pluginenvfiles[@]}"
+      do
+        if [[ -f $pluginenvfile ]]; then
+          bb_logdebug "sourcing ${pluginenvfile}"
+          source ${pluginenvfile}
+        fi
+      done
+      unset pluginname
+      unset pluginvendor
+      unset pluginver
+    done
+
+    IFS="${origIFS}"  
+    bb_logenvironment ${vendor}
+    bb_logenvironment ${application}
+    bb_logenvironment "PATH"
+    bb_logenvironment "VERSION"
+    bb_logenvironment "BB_"
+  fi
+return 0
+}  

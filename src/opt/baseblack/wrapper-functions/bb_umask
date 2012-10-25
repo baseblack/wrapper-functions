@@ -1,0 +1,13 @@
+#default file permissions of 664 (666 - 0000) or "rw-rw-rw-"
+# PCN
+
+source /opt/baseblack/wrapper-functions/bb_logger
+
+
+desired_umask=0002
+current_umask=$(echo `umask -p | awk '{ print $2 }'`) 
+
+if [ $current_umask -ne $desired_umask ] ; then
+  umask ${desired_umask}
+  bb_logdebug "bb_mask function set UMASK to ${desired_umask}"
+fi

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+source /opt/baseblack/wrapper-functions/bb_apploader
+source /opt/baseblack/wrapper-functions/bb_args
+source /opt/baseblack/wrapper-functions/bb_logger
+source /opt/baseblack/wrapper-functions/bb_umask
+
+
+bb_getopts $@
+bb_getappversion "autodesk" "maya"
+
+bb_loginit "MAYA_LOGFILE" ${USER} "autodesk" "maya"  ${MAYA_VERSION}
+bb_loginit "MAYA_COMMAND_LOGFILE" ${USER} "autodesk" "maya" ${MAYA_VERSION}
+
+bb_loginfo "MAYA_LOGFILE" "logging standard ouput to ${MAYA_LOGFILE}"
+bb_loginfo "MAYA_COMMAND_LOGFILE" "logging maya command ouput to ${MAYA_COMMAND_LOGFILE}"
+
+bb_loadappsettings "autodesk" "maya" ${MAYA_VERSION}
+bb_loadappplugins "autodesk" "maya" ${MAYA_VERSION}
+
+bb_loginfo MAYA_LOGFILE "executing: '$0 $*'"
+$MAYA_LOCATION/bin/maya.bin $BB_ARGS  2>&1 | tee -a $MAYA_LOGFILE
+
+exit ${PIPESTATUS[0]}

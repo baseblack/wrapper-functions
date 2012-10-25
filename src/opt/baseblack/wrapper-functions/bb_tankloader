@@ -1,0 +1,37 @@
+# bash functions for getting tank to bootstrap
+# AMB
+
+source /opt/baseblack/wrapper-functions/bb_logger
+
+function bb_tankbootstrap {
+  # determines if TANK_X_ENGINE has been set
+  # adds engine specific environment additions.
+  if [ $# -ne 3 ]  ; then
+    echo "ERROR: bb_tankbootstrap called incorrectly"
+    echo "usage: bb_tankbootstrap <vendor> <application> <version>. Exiting."
+    exit 1
+  else
+    bb_logdebug "bb_tankbootstrap called with args '$1 $2'"
+    local vendor=$1
+    local application=$2
+    local appver=$3
+    local engine=$(echo "TANK_${application^^}_ENGINE")
+
+    if [[  ! ${!engine} ]] ; then
+      local apptankfiles=("$HOME/.config/baseblack/${vendor}/${application}/${appver}/tank" \
+      "/mnt/shows/$SHOW/.config/baseblack/${vendor}/${application}/${appver}/tank" \
+      "/opt/.config/baseblack/${vendor}/${application}/${appver}/tank")
+      for apptankfile in "${apptankfiles[@]}"; do
+        if [[ -f $apptankfile ]]; then
+          bb_logdebug "sourcing ${apptankfile}"
+          source ${apptankfile}
+        else
+          bb_logdebug "application tank configuration file '${apptankfile}' not found"
+        fi
+      done
+    else
+      bb_logdebug "sg_${application,,} has already been set. Skipping"
+    fi
+  fi
+}
+
