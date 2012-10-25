@@ -5,7 +5,7 @@ you do not want wrapper-functions
 
 never look wrapper-functions straight in the eye
 
-discontinue use of wrapper-functions if any of the following occurs:
+discontinue use of wrapper-functions if any of the following occur:
 * itching
 * vertigo
 * dizziness
@@ -18,6 +18,10 @@ discontinue use of wrapper-functions if any of the following occurs:
 
 do not taunt wrapper-functions
 
-wrapper-functions comes with no guarantee
-
 if wrapper-functions speak to you, disobey immediately
+
+do not feed wrapper-functions after midnight
+
+do not get wrapper-functions wet
+
+wrapper-functions comes with no guarantee
